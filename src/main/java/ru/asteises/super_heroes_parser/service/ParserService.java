@@ -1,11 +1,11 @@
 package ru.asteises.super_heroes_parser.service;
 
 import org.springframework.stereotype.Service;
-import ru.asteises.super_heroes_parser.model.Page;
+import ru.asteises.super_heroes_parser.model.Hero;
 
 @Service
 public interface ParserService {
 
-    Page parsePage(String url);
+    Hero parsePage(String url);
 
 }

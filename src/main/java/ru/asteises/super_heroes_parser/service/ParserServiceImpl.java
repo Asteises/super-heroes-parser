@@ -6,7 +6,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
-import ru.asteises.super_heroes_parser.model.Page;
+import ru.asteises.super_heroes_parser.model.Hero;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -14,21 +14,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
 public class ParserServiceImpl implements ParserService {
 
     @Override
-    public Page parsePage(String url) {
+    public Hero parsePage(String url) {
         Document document = getDocument(url);
-        return parsePageData(document);
+        Hero hero = parsePageData(document);
+        hero.setUrl(url);
+        return hero;
     }
 
-    public Page parsePageData(Document document) {
-        Page page = new Page();
+    public Hero parsePageData(Document document) {
+        Hero hero = new Hero();
         String mainLink = "http://www.superherodb.com";
-        page.setId(UUID.randomUUID());
+        hero.setId(UUID.randomUUID());
 
         Elements elements = document.getAllElements();
 
@@ -38,19 +41,19 @@ public class ParserServiceImpl implements ParserService {
         String h3 = divH.select("h3").text();
 
         if (!h1.isEmpty()) {
-            page.setH1Name(h1);
+            hero.setH1Name(h1);
         }
         if (!h2.isEmpty()) {
-            page.setH2Name(h2);
+            hero.setH2Name(h2);
         }
         if (!h3.isEmpty()) {
-            page.setSolarSystem(h3);
+            hero.setSolarSystem(h3);
         }
 
         Elements divPortrait = elements.select("div.portrait.user");
         String portraitUrl = divPortrait.select("img").attr("src");
         if (!portraitUrl.isEmpty()) {
-            page.setPortraitUrl(mainLink + portraitUrl);
+            hero.setPortraitUrl(mainLink + portraitUrl);
         }
 
         List<String> top3battlesLinks = new ArrayList<>();
@@ -59,7 +62,7 @@ public class ParserServiceImpl implements ParserService {
             String link = element.select("a").attr("href");
             top3battlesLinks.add(mainLink + link);
         }
-        page.setTop3battle(top3battlesLinks);
+//        hero.setTop3battle(top3battlesLinks);
 
         Map<String, String> tabsMap = new HashMap<>();
         Elements tabs = elements.select("li.tab-item");
@@ -70,20 +73,67 @@ public class ParserServiceImpl implements ParserService {
                 tabsMap.put(title, mainLink + link);
             }
         }
-        page.setTabs(tabsMap.values().stream().toList());
+        hero.setTabs(tabsMap.values());
 
         String history = parseHistory(tabsMap.get("history"));
-        page.setContent(history);
+        hero.setContent(history);
 
         List<String> powers = parsePowers(tabsMap.get("powers"));
-        page.setPowers(powers);
+        hero.setPowers(powers);
 
         Map<String, String> stats = parseStats(tabsMap.get("powers"));
-        page.setIntelligence(stats.get("Intelligence"));
-        page.setStrength(stats.get("Strength"));
-        page.setSpeed(stats.get("Speed"));
+        hero.setIntelligence(stats.get("Intelligence"));
+        hero.setStrength(stats.get("Strength"));
+        hero.setSpeed(stats.get("Speed"));
 
-        return page;
+        Elements originInfo = elements
+                .select("div.column.col-8.col-md-7.col-sm-12")
+                .select("table.table.profile-table")
+                .select("tbody");
+
+        Element creator = originInfo.select("tr:eq(0)").first();
+        if (creator != null) {
+            hero.setCreator(creator.select("td:eq(1)").text());
+            log.info(hero.getCreator());
+        }
+
+        Element universe = originInfo.select("tr:eq(1)").first();
+        if (universe != null) {
+            hero.setUniverse(universe.select("td:eq(1)").text());
+            log.info(hero.getUniverse());
+        }
+
+        Element fullName = originInfo.select("tr:eq(2)").first();
+        if (fullName != null) {
+            hero.setFullName(fullName.select("td:eq(1)").text());
+            log.info(hero.getFullName());
+        }
+
+        Element aliases = originInfo.select("tr:eq(4)").first();
+        if (aliases != null) {
+            hero.setAliases(aliases.select("td:eq(1)").text());
+            log.info(hero.getAliases());
+        }
+
+        Element placeOfBirth = originInfo.select("tr:eq(5)").first();
+        if (placeOfBirth != null) {
+            hero.setPlaceOfBirth(placeOfBirth.select("td:eq(1)").text());
+            log.info(hero.getPlaceOfBirth());
+        }
+
+        Element firstAppearance = originInfo.select("tr:eq(6)").first();
+        if (firstAppearance != null) {
+            hero.setFirstAppearance(firstAppearance.select("td:eq(1)").text());
+            log.info(hero.getFirstAppearance());
+        }
+
+        Element alignment = originInfo.select("tr:eq(7)").first();
+        if (aliases != null) {
+            hero.setAlignment(alignment.select("td:eq(1)").text());
+            log.info(hero.getAlignment());
+        }
+
+        return hero;
     }
 
     // TODO Нужно красиво распарсить текст
@@ -117,6 +167,7 @@ public class ParserServiceImpl implements ParserService {
 
         Document document = getDocument(url);
         Elements stats = document.select("table.table.profile-table").select("tbody");
+
         Element intelligence = stats.select("tr:eq(0)").first();
         if (intelligence != null) {
             intValue = intelligence.select("td:eq(1)").text();

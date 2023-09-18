@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import ru.asteises.super_heroes_parser.model.Page;
+import ru.asteises.super_heroes_parser.model.Hero;
 import ru.asteises.super_heroes_parser.service.ParserService;
 import ru.asteises.super_heroes_parser.util.Endpoints;
 
@@ -22,7 +22,7 @@ public class ParserController {
 
     //https://www.superherodb.com/adam-strange/10-626/
     @PostMapping(Endpoints.PARSE_PAGE)
-    public ResponseEntity<Page> parsePage(@RequestParam String path) {
+    public ResponseEntity<Hero> parsePage(@RequestParam String path) {
         return new ResponseEntity<>(parserService.parsePage(path), HttpStatus.CREATED);
     }
 }

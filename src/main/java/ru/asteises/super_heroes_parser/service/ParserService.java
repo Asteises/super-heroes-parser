@@ -7,6 +7,7 @@ import ru.asteises.super_heroes_parser.model.dto.HeroDto;
 @Service
 public interface ParserService {
 
+    Long createAllHeroes();
     HeroDto getHero(String url);
     Hero parsePage(String url);
 

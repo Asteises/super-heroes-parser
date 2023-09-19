@@ -9,10 +9,12 @@ import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 import ru.asteises.super_heroes_parser.mapper.MainPowerMapper;
 import ru.asteises.super_heroes_parser.model.Hero;
+import ru.asteises.super_heroes_parser.model.HeroPage;
 import ru.asteises.super_heroes_parser.model.MainPower;
 import ru.asteises.super_heroes_parser.model.Tab;
 import ru.asteises.super_heroes_parser.model.dto.HeroDto;
 import ru.asteises.super_heroes_parser.model.dto.MainPowerDto;
+import ru.asteises.super_heroes_parser.storage.HeroPagesRepo;
 import ru.asteises.super_heroes_parser.storage.HeroRepo;
 import ru.asteises.super_heroes_parser.storage.MainPowerRepo;
 import ru.asteises.super_heroes_parser.storage.PowerRepo;
@@ -36,6 +38,18 @@ public class ParserServiceImpl implements ParserService {
     private final MainPowerRepo mainPowerRepo;
     private final PowerRepo powerRepo;
     private final TabRepo tabRepo;
+    private final HeroPagesRepo heroPagesRepo;
+
+    public Long createAllHeroes() {
+        List<HeroPage> heroPages = heroPagesRepo.findAll();
+        for (HeroPage heroPage: heroPages) {
+            String url = heroPage.getUrl();
+            if (heroRepo.findHeroByUrl(url).isEmpty()) {
+                parsePage(url);
+            }
+        }
+        return heroRepo.count();
+    }
 
     // TODO ADD MAPPERS
     public HeroDto getHero(String url) {
@@ -153,9 +167,9 @@ public class ParserServiceImpl implements ParserService {
             log.info(hero.getFirstAppearance());
         }
 
-        Element alignment = originInfo.select("tr:eq(7)").first().select("td:eq(1)").first();
-        if (aliases != null) {
-            hero.setAlignment(alignment.text());
+        Element alignment = originInfo.select("tr:eq(7)").first();
+        if (alignment != null) {
+            hero.setAlignment(alignment.select("td:eq(1)").text());
             log.info(hero.getAlignment());
         } else {
             hero.setAlignment("unknown");

@@ -18,13 +18,13 @@ import java.util.UUID;
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
-@Table(name = "Tabs")
-public class Tab {
+@Table(name = "Main_powers")
+public class MainPower {
 
     @Id
     private UUID id;
-    private String title;
-    private String url;
+    private String name;
+
     @ManyToOne
     @JoinColumn(name = "hero_id", nullable = false)
     private Hero hero;
@@ -33,8 +33,8 @@ public class Tab {
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Tab tab = (Tab) o;
-        return id.equals(tab.id);
+        MainPower mainPower = (MainPower) o;
+        return id == mainPower.id;
     }
 
     @Override
@@ -44,10 +44,9 @@ public class Tab {
 
     @Override
     public String toString() {
-        return "Tab{" +
+        return "MainPower{" +
                 "id=" + id +
-                ", title='" + title + '\'' +
-                ", url='" + url + '\'' +
+                ", name='" + name + '\'' +
                 ", hero=" + hero +
                 '}';
     }

@@ -21,16 +21,26 @@ CREATE TABLE IF NOT EXISTS Heroes
 
 CREATE TABLE IF NOT EXISTS Tabs
 (
-    id           UUID PRIMARY KEY,
-    url          VARCHAR,
-    hero_page_id UUID,
-    FOREIGN KEY (hero_page_id) references Heroes (id)
+    id      UUID PRIMARY KEY,
+    title   VARCHAR,
+    url     VARCHAR,
+    hero_id UUID,
+    FOREIGN KEY (hero_id) REFERENCES Heroes (id)
+);
+
+CREATE TABLE IF NOT EXISTS Main_powers
+(
+    id      UUID PRIMARY KEY,
+    name    VARCHAR,
+    hero_id UUID,
+    FOREIGN KEY (hero_id) REFERENCES Heroes (id)
 );
 
 CREATE TABLE IF NOT EXISTS Powers
 (
     id          UUID PRIMARY KEY,
     url         VARCHAR,
+    name        VARCHAR,
     tier        VARCHAR,
     score       VARCHAR,
     description VARCHAR

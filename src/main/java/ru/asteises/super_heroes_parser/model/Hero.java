@@ -1,10 +1,8 @@
 package ru.asteises.super_heroes_parser.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.JoinTable;
-import jakarta.persistence.ManyToMany;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
@@ -30,17 +28,24 @@ public class Hero {
 
     private String content;
 
+    @Column(name = "portrait_url")
     private String portraitUrl;
+    @Column(name = "h_1_name")
     private String h1Name;
+    @Column(name = "h_2_name")
     private String h2Name;
+    @Column(name = "solar_system")
     private String solarSystem;
 
     private String creator;
     private String universe;
 
+    @Column(name = "full_name")
     private String fullName;
     private String aliases;
+    @Column(name = "place_of_birth")
     private String placeOfBirth;
+    @Column(name = "first_appearance")
     private String firstAppearance;
     private String alignment;
 
@@ -52,11 +57,15 @@ public class Hero {
     private Set<Tab> tabs;
     // TODO Прикрутить топ 3 батлов
     //    private List<String> top3battle;
-    @ManyToMany
-    @JoinTable(name = "Heroes_powers",
-            joinColumns = @JoinColumn(name = "hero_id"),
-            inverseJoinColumns = @JoinColumn(name = "power_id"))
-    private Set<Power> powers;
+
+    @OneToMany(mappedBy = "hero")
+    private Set<MainPower> mainPowers;
+
+//    @ManyToMany
+//    @JoinTable(name = "Heroes_powers",
+//            joinColumns = @JoinColumn(name = "hero_id"),
+//            inverseJoinColumns = @JoinColumn(name = "power_id"))
+//    private Set<Power> powers;
 
     @Override
     public boolean equals(Object o) {
@@ -69,5 +78,30 @@ public class Hero {
     @Override
     public int hashCode() {
         return Objects.hash(id);
+    }
+
+    @Override
+    public String toString() {
+        return "Hero{" +
+                "id=" + id +
+                ", url='" + url + '\'' +
+                ", content='" + content + '\'' +
+                ", portraitUrl='" + portraitUrl + '\'' +
+                ", h1Name='" + h1Name + '\'' +
+                ", h2Name='" + h2Name + '\'' +
+                ", solarSystem='" + solarSystem + '\'' +
+                ", creator='" + creator + '\'' +
+                ", universe='" + universe + '\'' +
+                ", fullName='" + fullName + '\'' +
+                ", aliases='" + aliases + '\'' +
+                ", placeOfBirth='" + placeOfBirth + '\'' +
+                ", firstAppearance='" + firstAppearance + '\'' +
+                ", alignment='" + alignment + '\'' +
+                ", intelligence='" + intelligence + '\'' +
+                ", strength='" + strength + '\'' +
+                ", speed='" + speed + '\'' +
+                ", tabs=" + tabs +
+                ", mainPowers=" + mainPowers +
+                '}';
     }
 }

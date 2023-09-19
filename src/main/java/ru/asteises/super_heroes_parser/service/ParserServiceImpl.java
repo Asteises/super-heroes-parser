@@ -1,37 +1,85 @@
 package ru.asteises.super_heroes_parser.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
+import ru.asteises.super_heroes_parser.mapper.MainPowerMapper;
 import ru.asteises.super_heroes_parser.model.Hero;
+import ru.asteises.super_heroes_parser.model.MainPower;
+import ru.asteises.super_heroes_parser.model.Tab;
+import ru.asteises.super_heroes_parser.model.dto.HeroDto;
+import ru.asteises.super_heroes_parser.model.dto.MainPowerDto;
+import ru.asteises.super_heroes_parser.storage.HeroRepo;
+import ru.asteises.super_heroes_parser.storage.MainPowerRepo;
+import ru.asteises.super_heroes_parser.storage.PowerRepo;
+import ru.asteises.super_heroes_parser.storage.TabRepo;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Slf4j
+@RequiredArgsConstructor
 @Service
 public class ParserServiceImpl implements ParserService {
 
+    private final HeroRepo heroRepo;
+
+    private final MainPowerRepo mainPowerRepo;
+    private final PowerRepo powerRepo;
+    private final TabRepo tabRepo;
+
+    // TODO ADD MAPPERS
+    public HeroDto getHero(String url) {
+        Hero hero = parsePage(url);
+        List<MainPowerDto> mainPowerDtos = MainPowerMapper.INSTANCE.toDto(hero.getMainPowers().stream().toList());
+
+        return HeroDto.builder()
+                .h1Name(hero.getH1Name())
+                .solarSystem(hero.getSolarSystem())
+                .creator(hero.getCreator())
+                .universe(hero.getUniverse())
+                .fullName(hero.getFullName())
+                .aliases(hero.getAliases())
+                .placeOfBirth(hero.getPlaceOfBirth())
+                .firstAppearance(hero.getFirstAppearance())
+                .alignment(hero.getAlignment())
+                .intelligence(hero.getIntelligence())
+                .strength(hero.getStrength())
+                .speed(hero.getSpeed())
+                .mainPowersDtos(mainPowerDtos)
+                .build();
+    }
     @Override
     public Hero parsePage(String url) {
         Document document = getDocument(url);
-        Hero hero = parsePageData(document);
+        Hero hero = createNewHero();
+        hero = parsePageData(document, hero);
         hero.setUrl(url);
+        return saveHero(hero);
+    }
+
+    public Hero createNewHero() {
+        Hero hero = new Hero();
+        hero.setId(UUID.randomUUID());
+        return saveHero(hero);
+    }
+
+    public Hero saveHero(Hero hero) {
+        heroRepo.save(hero);
         return hero;
     }
 
-    public Hero parsePageData(Document document) {
-        Hero hero = new Hero();
+    public Hero parsePageData(Document document, Hero hero) {
         String mainLink = "http://www.superherodb.com";
-        hero.setId(UUID.randomUUID());
 
         Elements elements = document.getAllElements();
 
@@ -56,35 +104,13 @@ public class ParserServiceImpl implements ParserService {
             hero.setPortraitUrl(mainLink + portraitUrl);
         }
 
-        List<String> top3battlesLinks = new ArrayList<>();
-        Elements battles = elements.select("div.block.battle");
-        for (Element element : battles) {
-            String link = element.select("a").attr("href");
-            top3battlesLinks.add(mainLink + link);
-        }
+//        List<String> top3battlesLinks = new ArrayList<>();
+//        Elements battles = elements.select("div.block.battle");
+//        for (Element element : battles) {
+//            String link = element.select("a").attr("href");
+//            top3battlesLinks.add(mainLink + link);
+//        }
 //        hero.setTop3battle(top3battlesLinks);
-
-        Map<String, String> tabsMap = new HashMap<>();
-        Elements tabs = elements.select("li.tab-item");
-        for (Element element : tabs) {
-            String link = element.select("a").attr("href");
-            if (link.contains(h1.toLowerCase()) && !link.contains("edit")) {
-                String title = element.select("a").attr("title");
-                tabsMap.put(title, mainLink + link);
-            }
-        }
-        hero.setTabs(tabsMap.values());
-
-        String history = parseHistory(tabsMap.get("history"));
-        hero.setContent(history);
-
-        List<String> powers = parsePowers(tabsMap.get("powers"));
-        hero.setPowers(powers);
-
-        Map<String, String> stats = parseStats(tabsMap.get("powers"));
-        hero.setIntelligence(stats.get("Intelligence"));
-        hero.setStrength(stats.get("Strength"));
-        hero.setSpeed(stats.get("Speed"));
 
         Elements originInfo = elements
                 .select("div.column.col-8.col-md-7.col-sm-12")
@@ -127,13 +153,53 @@ public class ParserServiceImpl implements ParserService {
             log.info(hero.getFirstAppearance());
         }
 
-        Element alignment = originInfo.select("tr:eq(7)").first();
+        Element alignment = originInfo.select("tr:eq(7)").first().select("td:eq(1)").first();
         if (aliases != null) {
-            hero.setAlignment(alignment.select("td:eq(1)").text());
+            hero.setAlignment(alignment.text());
             log.info(hero.getAlignment());
+        } else {
+            hero.setAlignment("unknown");
         }
 
+        Set<Tab> tabs = parseTabs(elements, hero, mainLink);
+
+        for (Tab tab : tabs) {
+            if (tab.getTitle().contains("history")) {
+                String history = parseHistory(tab.getUrl());
+                hero.setContent(history);
+            } else if (tab.getTitle().contains("powers")) {
+                Set<MainPower> mainPowers = parseMainPowers(tab.getUrl(), hero);
+                hero.setMainPowers(mainPowers);
+
+                Map<String, String> stats = parseStats(tab.getUrl());
+                hero.setIntelligence(stats.get("Intelligence"));
+                hero.setStrength(stats.get("Strength"));
+                hero.setSpeed(stats.get("Speed"));
+            }
+        }
         return hero;
+    }
+
+    public Set<Tab> parseTabs(Elements elements, Hero hero, String mainLink) {
+        Set<Tab> tabSet = new HashSet<>();
+        Elements tabs = elements.select("li.tab-item");
+        for (Element element : tabs) {
+            String link = element.select("a").attr("href");
+            if (link.contains(hero.getH1Name().toLowerCase()) && !link.contains("edit")) {
+                String title = element.select("a").attr("title");
+
+                Tab tab = new Tab();
+                tab.setId(UUID.randomUUID());
+                tab.setHero(hero);
+                tab.setUrl(mainLink + link);
+                tab.setTitle(title);
+
+                tabSet.add(tab);
+            }
+        }
+        log.info(tabSet.toString());
+        tabRepo.saveAll(tabSet);
+        return tabSet;
     }
 
     // TODO Нужно красиво распарсить текст
@@ -148,15 +214,25 @@ public class ParserServiceImpl implements ParserService {
         return elements.select("div.column.col-12.text-columns-2").text();
     }
 
-    public List<String> parsePowers(String url) {
+    public Set<MainPower> parseMainPowers(String url, Hero hero) {
         Document document = getDocument(url);
-        Elements elements = document.select("div.column.col-8.col-md-12");
-        List<String> powersNames = new ArrayList<>();
-        for (Element element : elements.select("h4")) {
+        Elements elements = document.select("div.column.col-8.col-md-12").select("h4");
+        log.info("Elements with size: {} and main powers: {}", elements.size(), elements.text());
+        Set<MainPower> powers = new HashSet<>();
+        for (Element element : elements) {
+            log.info("Element h4: {}", element.text());
             String powerName = element.text();
-            powersNames.add(powerName);
+
+            MainPower mainPower = new MainPower();
+            mainPower.setId(UUID.randomUUID());
+            mainPower.setName(powerName);
+            mainPower.setHero(hero);
+
+            powers.add(mainPower);
         }
-        return powersNames;
+        log.info("Parse main powers: {}", powers);
+        mainPowerRepo.saveAll(powers);
+        return powers;
     }
 
     public Map<String, String> parseStats(String url) {

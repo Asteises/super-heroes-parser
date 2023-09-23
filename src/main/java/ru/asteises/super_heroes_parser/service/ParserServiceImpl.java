@@ -14,19 +14,10 @@ import ru.asteises.super_heroes_parser.model.MainPower;
 import ru.asteises.super_heroes_parser.model.Tab;
 import ru.asteises.super_heroes_parser.model.dto.HeroDto;
 import ru.asteises.super_heroes_parser.model.dto.MainPowerDto;
-import ru.asteises.super_heroes_parser.storage.HeroPagesRepo;
-import ru.asteises.super_heroes_parser.storage.HeroRepo;
-import ru.asteises.super_heroes_parser.storage.MainPowerRepo;
-import ru.asteises.super_heroes_parser.storage.PowerRepo;
-import ru.asteises.super_heroes_parser.storage.TabRepo;
+import ru.asteises.super_heroes_parser.storage.*;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -42,11 +33,17 @@ public class ParserServiceImpl implements ParserService {
 
     public Long createAllHeroes() {
         List<HeroPage> heroPages = heroPagesRepo.findAll();
-        for (HeroPage heroPage: heroPages) {
-            String url = heroPage.getUrl();
-            if (heroRepo.findHeroByUrl(url).isEmpty()) {
-                parsePage(url);
-            }
+        List<Hero> heroes = heroRepo.findAll();
+        List<String> actualLinks = new ArrayList<>();
+        for (HeroPage heroPage : heroPages) {
+            actualLinks.add(heroPage.getUrl());
+        }
+        for (Hero hero : heroes) {
+            actualLinks.remove(hero.getUrl());
+        }
+        log.info("Осталось спарсить: " + actualLinks.size());
+        for (String url : actualLinks) {
+            parsePage(url);
         }
         return heroRepo.count();
     }
@@ -72,6 +69,7 @@ public class ParserServiceImpl implements ParserService {
                 .mainPowersDtos(mainPowerDtos)
                 .build();
     }
+
     @Override
     public Hero parsePage(String url) {
         Document document = getDocument(url);

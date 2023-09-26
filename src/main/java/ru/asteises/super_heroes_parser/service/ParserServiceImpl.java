@@ -2,6 +2,8 @@ package ru.asteises.super_heroes_parser.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
+import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
@@ -14,10 +16,21 @@ import ru.asteises.super_heroes_parser.model.MainPower;
 import ru.asteises.super_heroes_parser.model.Tab;
 import ru.asteises.super_heroes_parser.model.dto.HeroDto;
 import ru.asteises.super_heroes_parser.model.dto.MainPowerDto;
-import ru.asteises.super_heroes_parser.storage.*;
+import ru.asteises.super_heroes_parser.storage.HeroPagesRepo;
+import ru.asteises.super_heroes_parser.storage.HeroRepo;
+import ru.asteises.super_heroes_parser.storage.MainPowerRepo;
+import ru.asteises.super_heroes_parser.storage.TabRepo;
 
+import java.io.File;
 import java.io.IOException;
-import java.util.*;
+import java.rmi.ConnectException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -25,9 +38,7 @@ import java.util.*;
 public class ParserServiceImpl implements ParserService {
 
     private final HeroRepo heroRepo;
-
     private final MainPowerRepo mainPowerRepo;
-    private final PowerRepo powerRepo;
     private final TabRepo tabRepo;
     private final HeroPagesRepo heroPagesRepo;
 
@@ -79,6 +90,65 @@ public class ParserServiceImpl implements ParserService {
         return saveHero(hero);
     }
 
+    @Override
+    public String imageParser() {
+        List<Hero> heroes = heroRepo.findAllByPortraitUrlNotNullAndMainImageIsNull();
+        log.info("heroes with portrait url: {}", heroes.size());
+        for (Hero hero : heroes) {
+            log.info("parse image for hero: {}", hero.getH1Name());
+            parseMainImage(hero);
+        }
+        return "OK";
+    }
+
+    @Override
+    public String parseMainImage(Hero hero) {
+        String filePath = createImageFilePath(hero);
+        try {
+            Connection.Response image = Jsoup
+                    .connect(hero.getPortraitUrl())
+                    .ignoreContentType(true)
+                    .execute();
+
+            FileUtils.writeByteArrayToFile(new File(filePath), image.bodyAsBytes());
+        } catch (IOException e) {
+            if (e instanceof ConnectException) {
+                try {
+                    wait(5000);
+                    parseMainImage(hero);
+                } catch (InterruptedException ex) {
+                    throw new RuntimeException(ex);
+                }
+            }
+        }
+        return "imageUrl";
+    }
+
+    //src/main/resources/heroes/L/Lady_Shiva/Prime_DC_Comics_Universe/Lady_Shiva.jpg
+    private String createImageFilePath(Hero hero) {
+        String mainUrl = "src/main/resources/heroes/";
+        String firstChar = String.valueOf(hero.getH1Name().charAt(0));
+        String heroName = hero.getH1Name()
+                .replaceAll(" ", "_")
+                .replaceAll("[^A-Za-zА-Яа-я0-9-_]", "");
+        String solarSystem;
+        if (hero.getSolarSystem() != null) {
+            solarSystem = hero.getSolarSystem()
+                    .replace(" ", "_")
+                    .replaceAll("[^a-zA-Z0-9-_]", "g");;
+        } else {
+            solarSystem = "unknown";
+        }
+        String fileName = heroName.toLowerCase() + ".jpg";
+        String resultPath = mainUrl + firstChar + "/" + heroName + "/" + solarSystem + "/" + fileName;
+
+        hero.setMainImage(resultPath);
+        heroRepo.save(hero);
+
+        log.info("result path: {}", resultPath);
+        return resultPath;
+    }
+
     public Hero createNewHero() {
         Hero hero = new Hero();
         hero.setId(UUID.randomUUID());
@@ -87,6 +157,7 @@ public class ParserServiceImpl implements ParserService {
 
     public Hero saveHero(Hero hero) {
         heroRepo.save(hero);
+        log.info("hero saved: {}", hero);
         return hero;
     }
 

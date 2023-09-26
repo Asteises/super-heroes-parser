@@ -21,10 +21,12 @@ import java.util.UUID;
 @Entity
 @Table(name = "Heroes")
 public class Hero {
-
     @Id
     private UUID id;
     private String url;
+
+    @Column(name = "main_image")
+    private String mainImage;
 
     private String content;
 

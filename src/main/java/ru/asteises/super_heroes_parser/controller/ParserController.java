@@ -49,4 +49,9 @@ public class ParserController {
     public ResponseEntity<Long> parseHeroesPages(@RequestParam String path) {
         return new ResponseEntity<>(pagesParser.setData(path), HttpStatus.CREATED);
     }
+
+    @PostMapping(Endpoints.PARSE_HERO_MAIN_IMAGE)
+    public ResponseEntity<String> parseHeroMainImage() {
+        return new ResponseEntity<>(parserService.imageParser(), HttpStatus.CREATED);
+    }
 }
